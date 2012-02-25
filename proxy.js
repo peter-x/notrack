@@ -1,16 +1,72 @@
-var sys = require('sys'),
+var util = require('util'),
+    events = require('events'),
     http = require('http'),
     net = require('net');
 
-function blockRequest(req, res, proxy) {
-    res.writeHead(404);
+
+/* TODO handle keep-alive connections correctly */
+
+exports.proxy = function Proxy(request_filter, options) {
+    events.EventEmitter.call(this);
+
+    this.request_filter = request_filter;
+    this.options = options;
+}
+
+util.inherits(Proxy, events.EventEmitter);
+
+Proxy.prototype.start = function() {
+    var proxy = http.createServer();
+    var me = this;
+    proxy.on('request', function(req, res) { me.handleRequest(req, res); });
+    proxy.on('upgrade', function(req, socket, head) { me.handleUpgrade(req, socket, head); });
+    proxy.listen(this.options.listen_port, this.options.listen_host);
+}
+
+Proxy.prototype.handleRequest = function(req, res, request_filter) {
+    var hostHeader = req.headers.host.split(':');
+    var host = hostHeader[0];
+    var port = hostHeader.length > 1 ? hostHeader[1] : '80';
+
+    if (!host || !port) return;
+
+    /* TODO send the actual url to request_filter (host from Host-header and
+     * uri from request header */
+    var pass = this.request_filter(req);
+    
+    emit('request', req, pass);
+    
+    if (pass) {
+        this.proxyRequest(req, res, {host: host, port: port});
+    } else {
+        this.blockRequest(req, res);
+    }
+}
+
+Proxy.prototype.handleUpgrade = function(req, socket, head) {
+    var hostHeader = req.url.split(':');
+    var host = hostHeader[0];
+    var port = hostHeader.length > 1 ? hostHeader[1] : '80';
+
+    if (!host || !port) return;
+    var pass = this.request_filter(req);
+    if (pass) {
+        this.proxyConnectRequest(req, socket, head, {host: host, port: port});
+    } else {
+        this.blockRequest(req, socket);
+    }
+}
+
+Proxy.prototype.blockRequest = function(req, res, proxy) {
+    res.writeHead(404); /* TODO does not work for "connect resposes" (socket) */
     res.end();
 }
 
-function proxyRequest(req, res, options) {
+Proxy.prototype.proxyRequest = function(req, res, options) {
     var proxy = http.createClient(options.port, options.host);
     var proxyReq = proxy.request(req.method, req.url, req.headers);
 
+    /* TODO listen for drain signals */
     proxyReq.on('response', function(proxyRes) {
         res.writeHeader(proxyRes.statusCode, proxyRes.headers);
 
@@ -32,7 +88,7 @@ function proxyRequest(req, res, options) {
     });
 }
 
-function proxyConnectRequest(req, socket, head, options) {
+Proxy.prototype.proxyConnectRequest = function(req, socket, head, options) {
     var proxyReq = net.createConnection(options.port, options.host);
     proxyReq.on('connect', function() {
         /* TODO see how to do this correctly */
@@ -42,6 +98,7 @@ function proxyConnectRequest(req, socket, head, options) {
         }
     });
 
+    /* TODO listen for drain signals */
     proxyReq.on('data', function(data) {
         socket.write(data, 'binary');
     });
@@ -58,41 +115,3 @@ function proxyConnectRequest(req, socket, head, options) {
     });
 }
 
-function handleRequest(req, res, request_filter) {
-    var hostHeader = req.headers.host.split(':');
-    var host = hostHeader[0];
-    var port = hostHeader.length > 1 ? hostHeader[1] : '80';
-
-    if (!host || !port) return;
-    /* TODO send the actual url to request_filter (host from Host-header and
-     * uri from request header */
-    var pass = request_filter(req);
-    if (pass) {
-        proxyRequest(req, res, {host: host, port: port});
-    } else {
-        blockRequest(req, res);
-    }
-}
-
-function handleUpgrade(req, socket, head, request_filter) {
-    var hostHeader = req.url.split(':');
-    var host = hostHeader[0];
-    var port = hostHeader.length > 1 ? hostHeader[1] : '80';
-
-    if (!host || !port) return;
-    var pass = request_filter(req);
-    if (pass) {
-        proxyConnectRequest(req, socket, head, {host: host, port: port});
-    } else {
-        blockRequest(req, socket);
-    }
-}
-
-/* TODO handle keep-alive connections correctly */
-
-exports.start = function start(request_filter, options) {
-    var proxy = http.createServer();
-    proxy.on('request', function(req, res) { handleRequest(req, res, request_filter); });
-    proxy.on('upgrade', function(req, socket, head) { handleUpgrade(req, socket, head, request_filter); });
-    proxy.listen(options.listen_port, options.listen_host);
-}
