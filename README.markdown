@@ -13,8 +13,6 @@ Work in progress.
 
 #### Dependencies
 
-For now: [node.js] and http-proxy (via [npm])
-
+For now: [node.js]
 
 [node.js]: http://nodejs.org
-[npm]: http://npmjs.org

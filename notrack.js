@@ -1,29 +1,20 @@
-var httpProxy = require('http-proxy');
+var proxy = require('./proxy');
 
-function blockRequest(req, res, proxy) {
-    try {
-        res.writeHead(404);
-        res.end();
-    } catch (error) {
-        console.error("res.writeHead/res.end error: %s", error.message);
-    }
+var config = {
+    "listen_port": "8080",
+    "listen_host": "127.0.0.1"
 }
 
-httpProxy.createServer(function(req, res, proxy) {
-    try {
-        var hostHeader = req.headers.host.split(':');
-        var host = hostHeader[0];
-        var port = hostHeader.length > 1 ? hostHeader[1] : '80';
+process.on('uncaughtException', function(err) {
+    console.log('Uncaught exception: %s', err);
+});
 
-        var block = false;
-        console.log("%s request for %s:%s.", block ? "BLOCK" : "PROXY", host, port);
-        if (block) {
-            blockRequest(req, res);
-        } else {
-            proxy.proxyRequest(req, res, {'host': host, 'port': port});
-        }
-    } catch (error) {
-        console.error("Error handling request: %s", error.message);
-    }
-}).listen(8080);
+function request_filter(req) {
+    console.log("%s %s", req.method, req.url);
+    if (req.url.indexOf('google') >= 0)
+        return false;
+    return true;
+}
+
+proxy.start(request_filter, config);
 
