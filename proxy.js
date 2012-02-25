@@ -67,7 +67,10 @@ Proxy.prototype.blockRequest = function(req, res, proxy) {
 
 Proxy.prototype.proxyRequest = function(req, res, options) {
     var proxy = http.createClient(options.port, options.host);
-    var proxyReq = proxy.request(req.method, req.url, req.headers);
+    var parsedUrl = url.parse(req.url);
+    /* TODO is || correct? */
+    var relativeUrl = (parsedUrl.pathname || '/') + (parsedUrl.search || '') + (parsedUrl.hash || '');
+    var proxyReq = proxy.request(req.method, relativeUrl, req.headers);
 
     /* TODO listen for drain signals */
     proxyReq.on('response', function(proxyRes) {
