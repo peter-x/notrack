@@ -1,12 +1,13 @@
 var util = require('util'),
     events = require('events'),
     http = require('http'),
-    net = require('net');
+    net = require('net'),
+    url = require('url');
 
 
 /* TODO handle keep-alive connections correctly */
 
-exports.proxy = function Proxy(request_filter, options) {
+exports.Proxy = Proxy = function(request_filter, options) {
     events.EventEmitter.call(this);
 
     this.request_filter = request_filter;
@@ -32,9 +33,11 @@ Proxy.prototype.handleRequest = function(req, res, request_filter) {
 
     /* TODO send the actual url to request_filter (host from Host-header and
      * uri from request header */
+    /* TODO should we use the host from the url or from the host header? (also
+     * in proxyRequest */
     var pass = this.request_filter(req);
     
-    emit('request', req, pass);
+    this.emit('request', req, pass);
     
     if (pass) {
         this.proxyRequest(req, res, {host: host, port: port});

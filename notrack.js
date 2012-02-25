@@ -1,4 +1,4 @@
-var proxy = require('./proxy');
+var Proxy = require('./proxy').Proxy;
 
 var config = {
     "listen_port": "8080",
@@ -16,5 +16,6 @@ function request_filter(req) {
     return true;
 }
 
-proxy.start(request_filter, config);
+var proxy = new Proxy(request_filter, config);
+proxy.start();
 
