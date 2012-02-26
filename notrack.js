@@ -1,4 +1,5 @@
 var Proxy = require('./proxy').Proxy;
+var Logger = require('./logger').Logger;
 
 var config = {
     "listen_port": "8080",
@@ -10,12 +11,11 @@ process.on('uncaughtException', function(err) {
 });
 
 function request_filter(req) {
-    console.log("%s %s", req.method, req.url);
     if (req.url.indexOf('google') >= 0)
         return false;
     return true;
 }
 
 var proxy = new Proxy(request_filter, config);
+var logger = new Logger(proxy);
 proxy.start();
-
