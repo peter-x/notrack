@@ -56,7 +56,8 @@ Proxy.prototype.handleUpgrade = function(req, socket, head) {
     if (pass) {
         this.proxyConnectRequest(req, socket, head, {host: host, port: port});
     } else {
-        this.blockRequest(req, socket);
+        socket.write("HTTP/1.1 404 Not found\r\n\r\n");
+        socket.end();
     }
 }
 
