@@ -11,8 +11,6 @@ exports.Logger = Logger = function(proxy) {
 
 Logger.prototype.logRequest = function(req, pass) {
     /* TODO wait for drain signal? */
-    /* TODO string and date formatting */
-    /* TODO remove tabs */
-    this.logfile.write(Date() + "\t" + req.method + "\t" + req.url + "\n");
+    this.logfile.write(JSON.stringify({date: Date(), method: req.method, url: req.url}) + "\n");
 }
 
