@@ -9,8 +9,8 @@ exports.Logger = Logger = function(proxy) {
     proxy.on('request', function(req, pass) { me.logRequest(req, pass); });
 }
 
-Logger.prototype.logRequest = function(req, pass) {
+Logger.prototype.logRequest = function(method, url, actionAndArgs) {
     /* TODO wait for drain signal? */
-    this.logfile.write(JSON.stringify({date: Date(), method: req.method, url: req.url}) + "\n");
+    this.logfile.write(JSON.stringify({date: Date(), method: method, url: url, action: actionAndArgs}) + "\n");
 }
 

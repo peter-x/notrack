@@ -35,29 +35,31 @@ exports.Filter = Filter = function() {
         this.rules['BLOCK'] = [];
 }
 
-Filter.prototype.filter_request = function(req) {
+Filter.prototype.filter_request = function(req, parsedUrl) {
     var m;
-    m = this.find_match(req, this.rules['PROXY TEMP']);
+    m = this.find_match(parsedUrl, this.rules['PROXY TEMP']);
     if (m !== null)
-        return true;
-    m = this.find_match(req, this.rules['PROXY']);
+        return ['PROXY'];
+    m = this.find_match(parsedUrl, this.rules['PROXY']);
     if (m !== null)
-        return true;
-    m = this.find_match(req, this.rules['REDIRECT']);
+        return ['PROXY'];
+    m = this.find_match(parsedUrl, this.rules['REDIRECT']);
     if (m !== null) {
         /* TODO */
-        return true;
+        target = '';
+        return ['REDIRECT', target];
     }
-    m = this.find_match(req, this.rules['BLOCK']);
+    m = this.find_match(parsedUrl, this.rules['BLOCK']);
     if (m !== null)
-        return false;
-    return true;
+        return ['BLOCK'];
+    return ['PROXY'];
 }
 
-Filter.prototype.find_match = function(req, ruleList) {
+Filter.prototype.find_match = function(parsedUrl, ruleList) {
+    var rawUrl = parsedUrl.href;
     for (var i in ruleList) {
         var rule = ruleList[i];
-        var m = rule.pattern.exec(req.url);
+        var m = rule.pattern.exec(rawUrl);
         if (m !== null) return [rule, m];
     }
     return null;

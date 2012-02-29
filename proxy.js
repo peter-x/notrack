@@ -25,36 +25,42 @@ Proxy.prototype.start = function() {
 }
 
 Proxy.prototype.handleRequest = function(req, res) {
-    var hostHeader = req.headers.host.split(':');
-    var host = hostHeader[0];
-    var port = hostHeader.length > 1 ? hostHeader[1] : '80';
+    var parsedUrl = url.parse(req.url);
+    parsedUrl.protocol = 'http:';
 
-    if (!host || !port) return;
+    if (!parsedUrl.hostname) {
+        /* copy host from Host:-header to url */
+        var hostHeader = req.headers.host.split(':');
+        parsedUrl.hostname = hostHeader[0];
+        if (hostHeader.length > 1) {
+            parsedUrl.port = hostHeader[1];
+            parsedUrl.host = parsedUrl.hostname + ':' + parsedUrl.port;
+        } else {
+            delete parsedUrl.port;
+            parsedUrl.host = parsedUrl.hostname;
+        }
+        parsedUrl = url.parse(url.format(parsedUrl));
+    }
 
-    /* TODO send the actual url to request_filter (host from Host-header and
-     * uri from request header */
-    /* TODO should we use the host from the url or from the host header? (also
-     * in proxyRequest */
-    var pass = this.filter.filter_request(req);
+    var actionAndArgs = this.filter.filter_request(req, parsedUrl);
+    this.emit('request', req.method, parsedUrl.href, actionAndArgs);
     
-    this.emit('request', req, pass);
-    
-    if (pass) {
-        this.proxyRequest(req, res, {host: host, port: port});
+    if (actionAndArgs[0] == 'PROXY') {
+        this.proxyRequest(req, res, parsedUrl);
     } else {
         this.blockRequest(req, res);
     }
 }
 
 Proxy.prototype.handleUpgrade = function(req, socket, head) {
-    var hostHeader = req.url.split(':');
-    var host = hostHeader[0];
-    var port = hostHeader.length > 1 ? hostHeader[1] : '80';
+    var hostname = req.url.split('/')[0];
+    var parsedUrl = url.parse(url.format('https://' + hostname));
 
-    if (!host || !port) return;
-    var pass = this.filter.filter_request(req);
-    if (pass) {
-        this.proxyConnectRequest(req, socket, head, {host: host, port: port});
+    var actionAndArgs = this.filter.filter_request(req, parsedUrl);
+    this.emit('request', req.method, parsedUrl.href, actionAndArgs);
+
+    if (actionAndArgs[0] == 'PROXY') {
+        this.proxyConnectRequest(req, socket, head, parsedUrl);
     } else {
         socket.write("HTTP/1.1 404 Not found\r\n\r\n");
         socket.end();
@@ -66,9 +72,8 @@ Proxy.prototype.blockRequest = function(req, res, proxy) {
     res.end();
 }
 
-Proxy.prototype.proxyRequest = function(req, res, options) {
-    var proxy = http.createClient(options.port, options.host);
-    var parsedUrl = url.parse(req.url);
+Proxy.prototype.proxyRequest = function(req, res, parsedUrl) {
+    var proxy = http.createClient(parsedUrl.port || '80', parsedUrl.hostname);
     /* TODO is || correct? */
     var relativeUrl = (parsedUrl.pathname || '/') + (parsedUrl.search || '') + (parsedUrl.hash || '');
     var proxyReq = proxy.request(req.method, relativeUrl, req.headers);
@@ -95,8 +100,8 @@ Proxy.prototype.proxyRequest = function(req, res, options) {
     });
 }
 
-Proxy.prototype.proxyConnectRequest = function(req, socket, head, options) {
-    var proxyReq = net.createConnection(options.port, options.host);
+Proxy.prototype.proxyConnectRequest = function(req, socket, head, parsedUrl) {
+    var proxyReq = net.createConnection(parsedUrl.port || '443', parsedUrl.hostname);
     proxyReq.on('connect', function() {
         /* TODO see how to do this correctly */
         socket.write('HTTP/1.1 200 OK\r\n\r\n');
