@@ -1,0 +1,6 @@
+[
+{"pattern": ".*google.*", "action": "BLOCK"},
+{"pattern": ".*facebook.*", "action": "BLOCK"},
+{"pattern": ".*twitter.*", "action": "BLOCK"},
+{"pattern": "http://maps.google.com/.*", "action": "PROXY"}
+]

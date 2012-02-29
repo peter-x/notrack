@@ -7,10 +7,10 @@ var util = require('util'),
 
 /* TODO handle keep-alive connections correctly */
 
-exports.Proxy = Proxy = function(request_filter, options) {
+exports.Proxy = Proxy = function(filter, options) {
     events.EventEmitter.call(this);
 
-    this.request_filter = request_filter;
+    this.filter = filter;
     this.options = options;
 }
 
@@ -24,7 +24,7 @@ Proxy.prototype.start = function() {
     proxy.listen(this.options.listen_port, this.options.listen_host);
 }
 
-Proxy.prototype.handleRequest = function(req, res, request_filter) {
+Proxy.prototype.handleRequest = function(req, res) {
     var hostHeader = req.headers.host.split(':');
     var host = hostHeader[0];
     var port = hostHeader.length > 1 ? hostHeader[1] : '80';
@@ -35,7 +35,7 @@ Proxy.prototype.handleRequest = function(req, res, request_filter) {
      * uri from request header */
     /* TODO should we use the host from the url or from the host header? (also
      * in proxyRequest */
-    var pass = this.request_filter(req);
+    var pass = this.filter.filter_request(req);
     
     this.emit('request', req, pass);
     
@@ -52,7 +52,7 @@ Proxy.prototype.handleUpgrade = function(req, socket, head) {
     var port = hostHeader.length > 1 ? hostHeader[1] : '80';
 
     if (!host || !port) return;
-    var pass = this.request_filter(req);
+    var pass = this.filter.filter_request(req);
     if (pass) {
         this.proxyConnectRequest(req, socket, head, {host: host, port: port});
     } else {
