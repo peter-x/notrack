@@ -20,7 +20,6 @@ exports.Filter = Filter = function() {
             rule.action = 'PROXY';
         if (rule.pattern === undefined)
             rule.pattern = '.*'; /* TODO really? */
-        rule.pattern = RegExp(rule.pattern) /* TODO exceptions */
         if (this.rules[rule.action] === undefined)
             this.rules[rule.action] = [];
         this.rules[rule.action].push(rule);
@@ -59,7 +58,9 @@ Filter.prototype.find_match = function(parsedUrl, ruleList) {
     var rawUrl = parsedUrl.href;
     for (var i in ruleList) {
         var rule = ruleList[i];
-        var m = rule.pattern.exec(rawUrl);
+        /* TODO pre-compile the patterns? Then we cannot JSON.stringify them */
+        /* TODO we should test the patters for validity on lead */
+        var m = RegExp(rule.pattern).exec(rawUrl);
         if (m !== null) return [rule, m];
     }
     return null;

@@ -7,10 +7,12 @@ var util = require('util'),
 
 /* TODO handle keep-alive connections correctly */
 
-exports.Proxy = Proxy = function(filter, options) {
+/* options: listen_port, listen_host */
+exports.Proxy = Proxy = function(filter, webserver, options) {
     events.EventEmitter.call(this);
 
     this.filter = filter;
+    this.webserver = webserver;
     this.options = options;
 }
 
@@ -40,6 +42,12 @@ Proxy.prototype.handleRequest = function(req, res) {
             parsedUrl.host = parsedUrl.hostname;
         }
         parsedUrl = url.parse(url.format(parsedUrl));
+    }
+
+    if (parsedUrl.hostname == this.webserver.hostname) {
+        /* TODO log this? */
+        this.webserver.handleRequest(req, res);
+        return;
     }
 
     var actionAndArgs = this.filter.filter_request(req, parsedUrl);
